@@ -1,0 +1,54 @@
+version: '3.7'
+services:
+  db:
+    image: postgres:15
+    container_name: currency_exchange_db
+    env_file:
+      - .env-non-dev
+    ports:
+      - 5433:5432
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7
+    container_name: currency_exchange_redis
+  currency_exchange:
+    build:
+      context: .
+    container_name: currency_exchange_app
+    env_file:
+      - .env-non-dev
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: ["/currency_exchange/docker/app.sh"]
+    ports:
+      - 9000:8000
+  prometheus:
+    image: prom/prometheus:v2.43.0
+    container_name: prometheus_cur
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheusdata:/prometheus
+    restart: unless-stopped
+    ports:
+      - 9090:9090
+
+  grafana:
+    image: grafana/grafana:9.4.7
+    container_name: grafana_cur
+    volumes:
+      - grafanadata:/var/lib/grafana
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+
+volumes:
+  postgresdata:
+  grafanadata:
+  prometheusdata:
